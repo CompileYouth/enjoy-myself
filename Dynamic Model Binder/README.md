@@ -1,5 +1,15 @@
 MVC 模型中动态绑定的自我实现。
 
+目标：
+
+```js
+const dynamicModelBinder = new DynamicModelBinder();
+
+dynamicModelBinder.getProperty('/country/province');
+dynamicModelBinder.setProperty('/country/province/city', 'Nanjing');
+dynamicModelBinder.bindProperty('/country/province');
+```
+
 ## 第一步
 
 实现一个 Observer 满足下面的条件：
@@ -101,21 +111,72 @@ Observer.prototype.walk = function(obj) {
 }
 
 Observer.prototype.convert = function (key, val) {
-    Object.defineProperty(this.data, key, {
-        enumerable: true,
-        configurable: true,
-        get: function () {
-            console.log('你访问了' + key);
-            return val;
-        },
-        set: function (newVal) {
-            console.log('你设置了' + key);
-            console.log('新的' + key + ' = ' + newVal)
-            if (newVal === val) return;
-            val = newVal;
-        }
-    })
+  Object.defineProperty(this.data, key, {
+    enumerable: true,
+    configurable: true,
+    get: function () {
+      console.log('你访问了' + key);
+      return val;
+    },
+    set: function (newVal) {
+      console.log('你设置了' + key);
+      console.log('新的' + key + ' = ' + newVal)
+      if (newVal === val) return;
+      val = newVal;
+    }
+  })
 };
 ```
 
 这就完善了嵌套对象的访问。
+
+## 第 3 步
+
+```js
+function Observer(data) {
+  this.data = data;
+  this.walk(data)
+}
+Observer.prototype.walk = function(obj) {
+  let val;
+  Object.keys(this.data).forEach(key => {
+    val = this.data[key];
+    if(typeof val === 'object') {
+      new Observer(val);
+    }
+    this.convert(key, val);
+  });
+}
+Observer.prototype.convert = function (key, val) {
+  const dep = new Dep();
+  Object.defineProperty(this.data, key, {
+    enumerable: true,
+    configurable: true,
+    get: function () {
+      console.log('你访问了' + key);
+      return val;
+    },
+    set: function (newVal) {
+      console.log('你设置了' + key);
+      console.log('新的' + key + ' = ' + newVal)
+      if (newVal === val) return;
+      val = newVal;
+      dep.notify();
+    }
+  })
+};
+
+function Dep() {
+  this.subscribes = [];
+}
+Dep.prototype.addSubscribe = function(subscribe) {
+  this.subscribes.push(subscribe);
+}
+Dep.prototype.notify = function() {
+  this.subscribes.forEach(sub => sub.update());
+}
+
+function Watcher() {
+
+}
+```
